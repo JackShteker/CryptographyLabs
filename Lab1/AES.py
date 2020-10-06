@@ -1,3 +1,8 @@
+import progressbar
+
+from util import *
+# from Crypto.Util.Padding import pad
+
 s_box = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -39,12 +44,6 @@ inv_s_box = (
 r_con = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
 )
-
-
-def printBytes(s):
-    for w in s:
-        print(w.hex())
-    print("")
 
 
 # sub_bytes performs SubBytes() function in-place
@@ -113,6 +112,8 @@ def inv_mix_columns(s):
         s[i][2] ^= u
         s[i][3] ^= v
 
+    mix_columns(s)
+
 
 def mix_columns(s):
     for a in s:
@@ -126,7 +127,7 @@ def add_round_key(s, k):
 
 
 def word_xor(w1, w2):
-    return bytearray(b1 ^ b2 for (b1, b2) in zip(w1, w2))
+    return bytes(b1 ^ b2 for (b1, b2) in zip(w1, w2))
 
 
 # sub_word performs SubWord() function in-place
@@ -145,20 +146,21 @@ def rot_word(w):
 
 def key_expansion(k, n_k, n_r):
     i = 0
-    w = [bytearray(4) for _ in range(4 * (n_r + 1))]
+    w = [bytes(4) for _ in range(4 * (n_r + 1))]
 
     while i < n_k:
         w[i] = k[i]
         i += 1
 
     while i < 4 * (n_r + 1):
-        temp = w[i - 1][:]
+        temp = list(w[i - 1][:])
         if i % n_k == 0:
             rot_word(temp)
             sub_word(temp)
             temp[0] = temp[0] ^ r_con[i // n_k]
         elif n_k > 6 and i % n_k == 4:
             sub_word(temp)
+        temp = bytes(temp)
         w[i] = word_xor(w[i - n_k], temp)
         i += 1
 
@@ -168,11 +170,27 @@ def key_expansion(k, n_k, n_r):
 def eq_rev_key_expansion(k, n_k, n_r):
     dw = key_expansion(k, n_k, n_r)
     for r in range(1, n_r):
-        inv_mix_columns(dw[r * 4:(r + 1) * 4])
+        col = [list(c) for c in dw[r * 4:(r + 1) * 4]]
+        inv_mix_columns(col)
+        col = [bytes(c) for c in col]
+        dw[r * 4:(r + 1) * 4] = col
+    return dw
+
+
+def pad(data_to_pad, block_size):
+    padding_len = block_size - len(data_to_pad) % block_size
+
+    p = bytearray([padding_len]) * padding_len
+    return data_to_pad + p
+
+
+def unpad(data_to_unpad):
+    padding_len = data_to_unpad[-1]
+    return data_to_unpad[:-padding_len]
 
 
 class AES:
-    def __init__(self, n_k):
+    def __init__(self, n_k, iv):
         self.N_k = n_k
         if n_k == 4:
             self.N_r = 10
@@ -182,6 +200,13 @@ class AES:
             self.N_r = 14
         else:
             raise Exception("Unexpected key length")
+
+        if iv[2] == " ":
+            iv = strToByteArray(iv)
+        else:
+            iv = strToByteArrayDense(iv)
+        assert len(iv) == 16
+        self.iv = iv
 
     def _cipher(self, inp, w):
         s = inp[:]
@@ -196,7 +221,7 @@ class AES:
         sub_bytes(s)
         shift_rows(s)
         add_round_key(s, w[self.N_r * 4:(self.N_r + 1) * 4])
-
+        s = wordArrayToByteArray(s)
         return s
 
     def _decipher(self, inp, dw):
@@ -208,12 +233,64 @@ class AES:
             inv_sub_bytes(s)
             inv_shift_rows(s)
             inv_mix_columns(s)
-            add_round_key(s, dw[r * 4, (r + 1) * 4])
+            add_round_key(s, dw[r * 4: (r + 1) * 4])
 
         inv_sub_bytes(s)
         inv_shift_rows(s)
-        add_round_key(s, dw[0, 4])
+        add_round_key(s, dw[0: 4])
 
         return s
+
+    def _encrypt_cbc(self, plaintext, iv, expanded_key, inp_type=None, verbose=False):
+        plaintext = pad(plaintext, 16)
+
+        blocks = []
+        previous = iv
+        assert len(plaintext) % 16 == 0
+        for i in progressbar.progressbar(range(0, len(plaintext), 16)):
+            plaintext_block = plaintext[i:i + 16]
+            block = self._cipher(bytesToWordArray(word_xor(plaintext_block, previous)), expanded_key)
+            blocks.append(block)
+            previous = block
+        if inp_type == "dense":
+            return "".join(bytesToStringDense(block) for block in blocks)
+        return " ".join(bytesToString(block) for block in blocks)
+
+    def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type=None, verbose=False):
+        blocks = []
+        previous = iv
+        for i in range(0, len(ciphertext), 16):
+            ciphertext_block = ciphertext[i:i + 16]
+            blocks.append(word_xor(previous, wordArrayToByteArray(self._decipher(bytesToWordArray(ciphertext_block), inv_expanded_key))))
+            previous = ciphertext_block
+
+        if inp_type == "dense":
+            return bytesToStringDense(unpad(b''.join(blocks)))
+        return bytesToString(unpad(b''.join(blocks)))
+
+    def encrypt(self, plaintext, key, inp_type=None, verbose=False):
+        if inp_type == "dense":
+            key = strToWordArrayDense(key)
+            plaintext = strToByteArrayDense(plaintext)
+        elif inp_type == "bytes":
+            key = strToWordArrayDense(key)
+        else:
+            key = strToWordArray(key)
+            plaintext = strToByteArray(plaintext)
+        w = key_expansion(key, self.N_k, self.N_r)
+        return self._encrypt_cbc(plaintext, self.iv, w, inp_type, verbose)
+
+    def decrypt(self, ciphertext, key, inp_type=None, verbose=False):
+        if inp_type == "dense":
+            key = strToWordArrayDense(key)
+            ciphertext = strToByteArrayDense(ciphertext)
+        elif inp_type == "bytes":
+            key = strToWordArrayDense(key)
+        else:
+            key = strToWordArray(key)
+            ciphertext = strToByteArray(ciphertext)
+        dw = eq_rev_key_expansion(key, self.N_k, self.N_r)
+        return self._decrypt_cbc(ciphertext, self.iv, dw, inp_type, verbose)
+
 
     # def cipher(self, ):

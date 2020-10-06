@@ -1,16 +1,14 @@
 import unittest
 
 from AES import *
-
-
-def strToWordArray(s):
-    s_bytes = [int(b, 16) for b in s.split(" ")]
-    assert len(s_bytes) == 16 or len(s_bytes) == 24 or len(s_bytes) == 32
-
-    return [bytearray(s_bytes[i * 4:(i + 1) * 4]) for i in range(len(s_bytes) // 4)]
+from util import *
 
 
 class TestAESFuncs(unittest.TestCase):
+
+    def test_strToWordArrayDense(self):
+        assert strToWordArray("2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c") == strToWordArrayDense(
+            "2b7e151628aed2a6abf7158809cf4f3c")
 
     def test_key_expansion_4(self):
         key = strToWordArray("2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c")
@@ -63,18 +61,70 @@ class TestAESFuncs(unittest.TestCase):
         assert w[-1].hex() == "706c631e"
 
     def test__cipher(self):
-        aes = AES(4)
+        aes = AES(4, "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00")
         inp = strToWordArray("32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34")
         key = strToWordArray("2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c")
 
         w = key_expansion(key, 4, 10)
         cipher = aes._cipher(inp, w)
+        print(cipher)
 
-        assert cipher[0].hex() == "3925841d"
-        assert cipher[1].hex() == "02dc09fb"
-        assert cipher[2].hex() == "dc118597"
-        assert cipher[3].hex() == "196a0b32"
+        assert cipher.hex() == "3925841d02dc09fbdc118597196a0b32"
 
+    def test__decipher(self):
+        aes = AES(4, "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00")
+        cipher = strToWordArrayDense("69c4e0d86a7b0430d8cdb78070b4c55a")
+        key = strToWordArray("00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+
+        dw = eq_rev_key_expansion(key, 4, 10)
+
+        msg = aes._decipher(cipher, dw)
+
+        assert wordArrayToStr(msg) == "00112233445566778899aabbccddeeff"
+
+    def test__AES(self):
+        aes = AES(4, "00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+        key = "2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c"
+        inp = "32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34"
+
+        ciphertext = aes.encrypt(inp, key)
+
+        deciphered = aes.decrypt(ciphertext, key)
+        assert deciphered == inp
+
+        # DENSE
+        # 4 bytes key
+
+        aes = AES(4, "00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+        key = "2b7e151628aed2a6abf7158809cf4f3c"
+        inp = "3243f6a8885a308d313198a2e0370734"
+
+        ciphertext = aes.encrypt(inp, key, "dense")
+
+        deciphered = aes.decrypt(ciphertext, key, "dense")
+        assert deciphered == inp
+
+        # 6 bytes key
+
+        aes = AES(6, "00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+        key = "2b7e151628aed2a6abf7158809cf4f3cabf7158809cf4f3c"
+        inp = "3243f6a8885a308d313198a2e0370734"
+
+        ciphertext = aes.encrypt(inp, key, "dense")
+
+        deciphered = aes.decrypt(ciphertext, key, "dense")
+        assert deciphered == inp
+
+        # 8 bytes key
+
+        aes = AES(8, "00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+        key = "2b7e151628aed2a6abf7158809cf4f3c2b7e151628aed2a6abf7158809cf4f3c"
+        inp = "3243f6a8885a308d313198a2e0370734"
+
+        ciphertext = aes.encrypt(inp, key, "dense")
+
+        deciphered = aes.decrypt(ciphertext, key, "dense")
+        assert deciphered == inp
 
 if __name__ == '__main__':
     unittest.main()
