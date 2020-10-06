@@ -60,6 +60,36 @@ class TestAESFuncs(unittest.TestCase):
         assert w[-2].hex() == "046df344"
         assert w[-1].hex() == "706c631e"
 
+    def test_sub_bytes(self):
+        state = strToWordArrayDense("00102030405060708090a0b0c0d0e0f0")
+        sub_bytes(state)
+        assert state == strToWordArrayDense("63cab7040953d051cd60e0e7ba70e18c")
+
+    def test_shift_rows(self):
+        state = strToWordArrayDense("63cab7040953d051cd60e0e7ba70e18c")
+        shift_rows(state)
+        assert state == strToWordArrayDense("6353e08c0960e104cd70b751bacad0e7")
+
+    def test_mix_columns(self):
+        state = strToWordArrayDense("6353e08c0960e104cd70b751bacad0e7")
+        mix_columns(state)
+        assert state == strToWordArrayDense("5f72641557f5bc92f7be3b291db9f91a")
+
+    def test_inv_sub_bytes(self):
+        state = strToWordArrayDense("7ad5fda789ef4e272bca100b3d9ff59f")
+        inv_sub_bytes(state)
+        assert state == strToWordArrayDense("bdb52189f261b63d0b107c9e8b6e776e")
+
+    def test_inv_shift_rows(self):
+        state = strToWordArrayDense("bdb52189f261b63d0b107c9e8b6e776e")
+        inv_shift_rows(state)
+        assert state == strToWordArrayDense("bd6e7c3df2b5779e0b61216e8b10b689")
+
+    def test_inv_mix_columns(self):
+        state = strToWordArrayDense("bd6e7c3df2b5779e0b61216e8b10b689")
+        inv_mix_columns(state)
+        assert state == strToWordArrayDense("4773b91ff72f354361cb018ea1e6cf2c")
+
     def test__cipher(self):
         aes = AES(4, "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00")
         inp = strToWordArray("32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34")

@@ -1,3 +1,5 @@
+import time
+
 import progressbar
 
 from util import *
@@ -126,10 +128,6 @@ def add_round_key(s, k):
             s[i][j] ^= k[i][j]
 
 
-def word_xor(w1, w2):
-    return bytes(b1 ^ b2 for (b1, b2) in zip(w1, w2))
-
-
 # sub_word performs SubWord() function in-place
 def sub_word(w):
     for i in range(4):
@@ -175,18 +173,6 @@ def eq_rev_key_expansion(k, n_k, n_r):
         col = [bytes(c) for c in col]
         dw[r * 4:(r + 1) * 4] = col
     return dw
-
-
-def pad(data_to_pad, block_size):
-    padding_len = block_size - len(data_to_pad) % block_size
-
-    p = bytearray([padding_len]) * padding_len
-    return data_to_pad + p
-
-
-def unpad(data_to_unpad):
-    padding_len = data_to_unpad[-1]
-    return data_to_unpad[:-padding_len]
 
 
 class AES:
@@ -241,12 +227,14 @@ class AES:
 
         return s
 
-    def _encrypt_cbc(self, plaintext, iv, expanded_key, inp_type=None, verbose=False):
+    def _encrypt_cbc(self, plaintext, iv, expanded_key, inp_type=None):
         plaintext = pad(plaintext, 16)
 
         blocks = []
         previous = iv
         assert len(plaintext) % 16 == 0
+        print("AES: Starting encrypting")
+        time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(plaintext), 16)):
             plaintext_block = plaintext[i:i + 16]
             block = self._cipher(bytesToWordArray(word_xor(plaintext_block, previous)), expanded_key)
@@ -254,21 +242,27 @@ class AES:
             previous = block
         if inp_type == "dense":
             return "".join(bytesToStringDense(block) for block in blocks)
+        if inp_type == "bytes":
+            return b''.join(blocks)
         return " ".join(bytesToString(block) for block in blocks)
 
-    def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type=None, verbose=False):
+    def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type=None):
         blocks = []
         previous = iv
-        for i in range(0, len(ciphertext), 16):
+        print("AES: Starting decrypting")
+        time.sleep(0.1)
+        for i in progressbar.progressbar(range(0, len(ciphertext), 16)):
             ciphertext_block = ciphertext[i:i + 16]
             blocks.append(word_xor(previous, wordArrayToByteArray(self._decipher(bytesToWordArray(ciphertext_block), inv_expanded_key))))
             previous = ciphertext_block
 
         if inp_type == "dense":
             return bytesToStringDense(unpad(b''.join(blocks)))
+        if inp_type == "bytes":
+            return unpad(b''.join(blocks))
         return bytesToString(unpad(b''.join(blocks)))
 
-    def encrypt(self, plaintext, key, inp_type=None, verbose=False):
+    def encrypt(self, plaintext, key, inp_type=None):
         if inp_type == "dense":
             key = strToWordArrayDense(key)
             plaintext = strToByteArrayDense(plaintext)
@@ -278,9 +272,9 @@ class AES:
             key = strToWordArray(key)
             plaintext = strToByteArray(plaintext)
         w = key_expansion(key, self.N_k, self.N_r)
-        return self._encrypt_cbc(plaintext, self.iv, w, inp_type, verbose)
+        return self._encrypt_cbc(plaintext, self.iv, w, inp_type)
 
-    def decrypt(self, ciphertext, key, inp_type=None, verbose=False):
+    def decrypt(self, ciphertext, key, inp_type=None):
         if inp_type == "dense":
             key = strToWordArrayDense(key)
             ciphertext = strToByteArrayDense(ciphertext)
@@ -290,7 +284,7 @@ class AES:
             key = strToWordArray(key)
             ciphertext = strToByteArray(ciphertext)
         dw = eq_rev_key_expansion(key, self.N_k, self.N_r)
-        return self._decrypt_cbc(ciphertext, self.iv, dw, inp_type, verbose)
+        return self._decrypt_cbc(ciphertext, self.iv, dw, inp_type)
 
 
     # def cipher(self, ):
