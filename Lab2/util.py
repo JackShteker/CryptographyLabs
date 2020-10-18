@@ -68,3 +68,12 @@ def unpad(data_to_unpad):
 
 def word_xor(w1, w2):
     return bytes(b1 ^ b2 for (b1, b2) in zip(w1, w2))
+
+def word(b):
+    assert len(b) == 4
+    return int.from_bytes(b, "little")
+
+
+two_in_128 = 2 ** 128
+word_mask = 0xffffffff
+two_in_64 = 2 ** 64

@@ -1,3 +1,4 @@
+from progressbar import progressbar
 
 
 class RC4:
@@ -25,7 +26,7 @@ class RC4:
         return self.S[(self.S[self.i] + self.S[self.j]) % 256]
 
     def encrypt(self, plaintext: bytes) -> bytes:
-        return bytes((b ^ self.generate_next() for b in plaintext))
+        return bytes((b ^ self.generate_next() for b in progressbar(plaintext)))
 
     def decrypt(self, plaintext: bytes) -> bytes:
-        return bytes((b ^ self.generate_next() for b in plaintext))
+        return bytes((b ^ self.generate_next() for b in progressbar(plaintext)))

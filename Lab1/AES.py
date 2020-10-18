@@ -233,7 +233,7 @@ class AES:
         blocks = []
         previous = iv
         assert len(plaintext) % 16 == 0
-        print("AES: Starting encrypting")
+        print("AES: Starting encryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(plaintext), 16)):
             plaintext_block = plaintext[i:i + 16]
@@ -249,7 +249,7 @@ class AES:
     def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type=None):
         blocks = []
         previous = iv
-        print("AES: Starting decrypting")
+        print("AES: Starting decryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(ciphertext), 16)):
             ciphertext_block = ciphertext[i:i + 16]

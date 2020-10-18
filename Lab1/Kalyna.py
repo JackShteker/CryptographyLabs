@@ -206,7 +206,7 @@ class Kalyna:
         blocks = []
         previous = iv
         assert len(plaintext) % block_size == 0
-        print("Kalyna: Starting encrypting")
+        print("Kalyna: Starting encryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(plaintext), block_size)):
             plaintext_block = plaintext[i:i + block_size]
@@ -219,7 +219,7 @@ class Kalyna:
         block_size = self.N_b * 8
         blocks = []
         previous = iv
-        print("Kalyna: Starting decrypting")
+        print("Kalyna: Starting decryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(ciphertext), block_size)):
             ciphertext_block = ciphertext[i:i + block_size]

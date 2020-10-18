@@ -227,13 +227,13 @@ class AES:
 
         return s
 
-    def _encrypt_cbc(self, plaintext, iv, expanded_key, inp_type=None):
+    def _encrypt_cbc(self, plaintext, iv, expanded_key, inp_type="bytes"):
         plaintext = pad(plaintext, 16)
 
         blocks = []
         previous = iv
         assert len(plaintext) % 16 == 0
-        print("AES: Starting encrypting")
+        print("AES: Starting encryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(plaintext), 16)):
             plaintext_block = plaintext[i:i + 16]
@@ -246,10 +246,10 @@ class AES:
             return b''.join(blocks)
         return " ".join(bytesToString(block) for block in blocks)
 
-    def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type=None):
+    def _decrypt_cbc(self, ciphertext, iv, inv_expanded_key, inp_type="bytes"):
         blocks = []
         previous = iv
-        print("AES: Starting decrypting")
+        print("AES: Starting decryption")
         time.sleep(0.1)
         for i in progressbar.progressbar(range(0, len(ciphertext), 16)):
             ciphertext_block = ciphertext[i:i + 16]
@@ -262,7 +262,7 @@ class AES:
             return unpad(b''.join(blocks))
         return bytesToString(unpad(b''.join(blocks)))
 
-    def encrypt(self, plaintext, key, inp_type=None):
+    def encrypt(self, plaintext, key, inp_type="bytes"):
         if inp_type == "dense":
             key = strToWordArrayDense(key)
             plaintext = strToByteArrayDense(plaintext)
