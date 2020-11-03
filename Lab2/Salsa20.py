@@ -1,3 +1,5 @@
+from copy import copy
+
 from util import *
 from progressbar import progressbar
 
@@ -22,8 +24,10 @@ class Salsa:
         for i in progressbar(range(0, len(plaintext), 64)):
             plaintext_block = plaintext[i:i + 64]
             self.s = Salsa._init_state(key, nonce, self.block.to_bytes(8, "little"))
+            orig_s = copy(self.s)
             self.rounds()
-            block = word_xor(plaintext_block, Salsa.state_to_bytes(self.s))
+            stream_block = Salsa.add_states(self.s, orig_s)
+            block = word_xor(plaintext_block, Salsa.state_to_bytes(stream_block))
             blocks.append(block)
             self.block = (self.block + 1) % two_in_64
         return b"".join(blocks)
@@ -36,8 +40,10 @@ class Salsa:
         for i in progressbar(range(0, len(ciphertext), 64)):
             ciphertext_block = ciphertext[i:i + 64]
             self.s = Salsa._init_state(key, nonce, self.block.to_bytes(8, "little"))
+            orig_s = copy(self.s)
             self.rounds()
-            block = word_xor(ciphertext_block, Salsa.state_to_bytes(self.s))
+            stream_block = Salsa.add_states(self.s, orig_s)
+            block = word_xor(ciphertext_block, Salsa.state_to_bytes(stream_block))
             blocks.append(block)
             self.block = (self.block + 1) % two_in_64
         return b"".join(blocks)
@@ -46,18 +52,26 @@ class Salsa:
     def state_to_bytes(s):
         return b"".join((w.to_bytes(4, "little") for w in s))
 
+    @staticmethod
+    def add_states(s1, s2):
+        return [(w1 + w2) & word_mask for w1, w2 in zip(s1, s2)]
+
     def rounds(self):
         for i in range(20):
             self._round(i % 2 == 1)
 
     def _qr(self, a, b, c, d):
-        self.s[a], self.s[b], self.s[c], self.s[d] = \
-            self.s[a] ^ Salsa._rotate((self.s[d] + self.s[c]) & word_mask, 18),\
-            self.s[b] ^ Salsa._rotate((self.s[a] + self.s[d]) & word_mask, 7),\
-            self.s[c] ^ Salsa._rotate((self.s[b] + self.s[a]) & word_mask, 9),\
-            self.s[d] ^ Salsa._rotate((self.s[c] + self.s[b]) & word_mask, 13),
+        self.s[b] = self.s[b] ^ Salsa._rotate((self.s[a] + self.s[d]) & word_mask, 7)
+        self.s[c] = self.s[c] ^ Salsa._rotate((self.s[b] + self.s[a]) & word_mask, 9)
+        self.s[d] = self.s[d] ^ Salsa._rotate((self.s[c] + self.s[b]) & word_mask, 13)
+        self.s[a] = self.s[a] ^ Salsa._rotate((self.s[d] + self.s[c]) & word_mask, 18)
 
-    def _round(self, odd : bool):
+        self.s = [self.s[0], self.s[4], self.s[8], self.s[12],
+                  self.s[1], self.s[5], self.s[9], self.s[13],
+                  self.s[2], self.s[6], self.s[10], self.s[14],
+                  self.s[3], self.s[7], self.s[11], self.s[15]]
+
+    def _round(self, odd: bool):
         if odd:
             self._qr(0, 4, 8, 12)
             self._qr(5, 9, 13, 1)

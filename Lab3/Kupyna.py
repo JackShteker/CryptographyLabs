@@ -105,6 +105,16 @@ class Kupyna:
         self.t = self._l_to_t[self.l]
         self.c = self._l_to_c[self.l]
 
+        self._mult_mat = Kupyna._gen_mult()
+
+    @staticmethod
+    def _gen_mult():
+        m = [[0] * 8 for _ in range(256)]
+        for i in range(256):
+            for j in range(1, 9):
+                m[i][j - 1] = Kupyna._multiply_gf(i, j)
+        return m
+
     def _pad(self, msg):
         length = len(msg) * 8
         msg.append(0x80)
@@ -148,14 +158,14 @@ class Kupyna:
             Kupyna._add_mod_2(s, v)
             Kupyna._sub_bytes(s)
             Kupyna._shift_rows(s, self.c)
-            Kupyna._mix_cols(s)
+            self._mix_cols(s)
 
     def _t2(self, s):
         for v in range(0, self.t):
             Kupyna._add_mod_64(s, self.c, v)
             Kupyna._sub_bytes(s)
             Kupyna._shift_rows(s, self.c)
-            Kupyna._mix_cols(s)
+            self._mix_cols(s)
 
     @staticmethod
     def _add_mod_n(g: bytearray, k: bytes, n: int):
@@ -200,21 +210,20 @@ class Kupyna:
             for col_i in range(shift):
                 s[col_i][row_i] = shifted_end[col_i]
 
-    @staticmethod
-    def _multiply_matrices(m, s):
+    def _multiply_matrices(self, m, s):
         result = [bytearray(8) for _ in range(len(s))]
         for col_i in range(len(s)):
             for row_i in reversed(range(8)):
                 product = 0
                 for b in reversed(range(8)):
-                    product ^= Kupyna._multiply_gf(s[col_i][b], m[row_i][b])
+                    # product ^= Kupyna._multiply_gf(s[col_i][b], m[row_i][b])
+                    product ^= self._mult_mat[s[col_i][b]][m[row_i][b] - 1]
                 result[col_i][row_i] = product
 
         return result
 
-    @staticmethod
-    def _mix_cols(s):
-        s[:] = Kupyna._multiply_matrices(Kupyna._mds_matrix, s)
+    def _mix_cols(self, s):
+        s[:] = self._multiply_matrices(Kupyna._mds_matrix, s)
 
     @staticmethod
     def _multiply_gf(x, y):

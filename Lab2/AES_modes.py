@@ -105,10 +105,11 @@ class AESmodes(AES):
         blocks = []
         print("AES: Starting encryption")
         time.sleep(0.1)
+        offset = int.from_bytes(iv, "little")
         for i in progressbar.progressbar(range(0, len(plaintext), 16)):
         # for i in range(0, len(plaintext), 16):
             plaintext_block = plaintext[i:i + 16]
-            n = (i // 16) % two_in_128
+            n = offset + (i // 16) % two_in_128
             y = self._cipher(bytesToWordArray(n.to_bytes(16, "little", signed=False)), expanded_key)
             blocks.append(word_xor(plaintext_block, y))
         return b"".join(blocks)
@@ -117,10 +118,11 @@ class AESmodes(AES):
         blocks = []
         print("AES: Starting decryption")
         time.sleep(0.1)
+        offset = int.from_bytes(iv, "little")
         for i in progressbar.progressbar(range(0, len(ciphertext), 16)):
         # for i in range(0, len(ciphertext), 16):
             ciphertext_block = ciphertext[i:i + 16]
-            n = (i // 16) % two_in_128
+            n = offset + (i // 16) % two_in_128
             y = self._cipher(bytesToWordArray(n.to_bytes(16, "little", signed=False)), expanded_key)
             blocks.append(word_xor(ciphertext_block, y))
         return b"".join(blocks)
