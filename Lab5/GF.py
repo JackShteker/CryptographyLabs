@@ -29,6 +29,17 @@ def mult(a: int, b: int, f: int):
         b >>= 1
     return r
 
+def pow(a:int, p:int, f:int) -> int:
+    q = 1
+    while p > 0:
+        if p & 1 == 1:
+            q = mult(q, a, f)
+        a = mult(a, a, f)
+        p >>= 1
+
+    return q
+
+
 def raw_mult(a: int, b: int):
     r = 0
     while b > 0:
@@ -85,3 +96,6 @@ def div_mod(a: int, b: int):
 
 def frac(a, b, f):
     return mult(a, inv(b, f), f)
+
+def square(a, f):
+    return mult(a, a, f)

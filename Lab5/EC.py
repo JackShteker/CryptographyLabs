@@ -6,7 +6,7 @@ class Point:
         self.y = y
 
     def __str__(self):
-        return f"X: {self.x}\nY: {self.y}"
+        return f"X: {hex(self.x)}\nY: {hex(self.y)}"
 
     def __eq__(self, other):
         assert type(other) == type(self)
@@ -37,6 +37,9 @@ class Curve:
         y_r = add(add(mult(t, add(p.x, x_r), self.f), x_r), p.y)
 
         return Point(x_r, y_r)
+
+    def neg(self, p: Point):
+        return Point(p.x, add(p.x, p.y))
 
     def mul2(self, p: Point):
         if p.x == 0:
